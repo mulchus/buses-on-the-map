@@ -26,7 +26,7 @@ async def server(request):
                 # buses_to_map['buses'][0]['lat'] = bus_coord[0]
                 # buses_to_map['buses'][0]['lng'] = bus_coord[1]
                 # await ws.send_message(json.dumps(buses_to_map))
-            await trio.sleep(.1)
+            # await trio.sleep(1)
         except ConnectionClosed:
             break
 
