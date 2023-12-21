@@ -1,24 +1,30 @@
 import trio
 import json
+import buses
 
+from functools import partial
 from trio_websocket import serve_websocket, ConnectionClosed
 
 
-buses = {
-  "msgType": "Buses",
-  "buses": [
-    {"busId": "c790сс", "lat": 55.7500, "lng": 37.600, "route": "120"},
-    {"busId": "a134aa", "lat": 55.7494, "lng": 37.621, "route": "670к"},
-  ]
-}
-
-
 async def server(request):
+    bus = buses.get_bus()
     ws = await request.accept()
+    
+    buses_to_map = {
+        'msgType': "Buses",
+        'buses': [
+            {'busId': 'аXXXик', 'lat': 0.0, 'lng': 0.0, 'route': bus['name']},
+        ]
+    }
+    
     while True:
+        bus_coords = buses.get_bus_coords(bus)
         try:
-            message = await ws.get_message()
-            await ws.send_message(json.dumps(buses))
+            for bus_coord in bus_coords:
+                buses_to_map['buses'][0]['lat'] = bus_coord[0]
+                buses_to_map['buses'][0]['lng'] = bus_coord[1]
+                await ws.send_message(json.dumps(buses_to_map))
+                await trio.sleep(1)
         except ConnectionClosed:
             break
 
@@ -26,4 +32,4 @@ async def server(request):
 async def main():
     await serve_websocket(server, '127.0.0.1', 8000, ssl_context=None)
 
-trio.run(main)
+trio.run(partial(main))
