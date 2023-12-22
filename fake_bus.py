@@ -25,8 +25,6 @@ async def main():
         for num, route in enumerate(load_routes()):
             print(num, route['name'])
             nursery.start_soon(run_bus, 'ws://127.0.0.1:8080', route['name'], route)
-            if num > 2:
-                return
 
 
 trio.run(main)
