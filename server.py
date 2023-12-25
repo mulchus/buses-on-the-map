@@ -3,6 +3,7 @@ import json
 
 from functools import partial
 from trio_websocket import serve_websocket, ConnectionClosed
+from contextlib import suppress
 
 
 buses = {}
@@ -43,4 +44,5 @@ async def main():
         nursery.start_soon(partial(serve_websocket, talk_to_browser, '127.0.0.1', 8000, ssl_context=None))
 
 
-trio.run(partial(main))
+with suppress(KeyboardInterrupt):
+    trio.run(partial(main))
