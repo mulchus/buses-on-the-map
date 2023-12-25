@@ -2,6 +2,7 @@ import trio
 import json
 import itertools
 import random
+import math
 
 from load_routes import load_routes
 from sys import stderr
@@ -52,11 +53,12 @@ async def send_updates(server_address, receive_channel):
 async def main():
     async with trio.open_nursery() as nursery:
         send_channel, receive_channel = trio.open_memory_channel(0)
+        # async with send_channel, receive_channel:
         nursery.start_soon(send_updates, 'ws://127.0.0.1:8080', receive_channel)
 
         all_buses_count = 0
         for num, route in enumerate(load_routes()):
-            buses_count = len(route['stations']) // 1
+            buses_count = len(route['stations']) // 4
             if not buses_count:
                 buses_count = 1
             all_buses_count += buses_count
@@ -70,7 +72,9 @@ async def main():
                 new_route_end = list(itertools.islice(route_copy['coordinates'], 0, route_separation))
                 new_route.extend(new_route_end)
                 route_copy['coordinates'] = new_route
-                nursery.start_soon(run_bus, bus_id, route_copy, send_channel)
+                random.choice([nursery.start_soon(run_bus, bus_id, route_copy, send_channel.clone()),
+                               nursery.start_soon(run_bus, bus_id, route_copy, send_channel.clone()),
+                               nursery.start_soon(run_bus, bus_id, route_copy, send_channel.clone())])
             # if num > 0:
             #     return
         print(all_buses_count)
