@@ -30,9 +30,9 @@ async def talk_to_browser(request):
               "msgType": "Buses",
               "buses": list(buses.values()),
             }
-            print(message)
+            # print(message)
             await ws.send_message(json.dumps(message))
-            await trio.sleep(1)
+            await trio.sleep(.1)
         except ConnectionClosed:
             break
 
