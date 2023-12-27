@@ -7,8 +7,9 @@ import logging
 import sys
 
 from load_routes import load_routes
-from trio_websocket import open_websocket_url
+from trio_websocket import open_websocket_url, HandshakeError, ConnectionClosed
 from contextlib import suppress
+from functools import wraps
 
 
 logger = logging.getLogger('logger')
@@ -105,16 +106,37 @@ def generate_bus_id(route_id, bus_index, emulator_id):
     return f'{route_id}-{bus_index}{emulator_id}'
 
 
+# создание обертки закоментировал, т.к. пока не понятно как ее реализовать с асинк функцией и исключениями
+# def relaunch_on_disconnect(async_function):
+#     @wraps(async_function)
+#     async def wrapper(*args, **kwargs):
+#         while True:
+#             try:
+#                 await async_function(*args, **kwargs)
+#                     # pass
+#             except OSError as ose:
+#                 logger.error(f'Connection attempt failed:{ose}')
+#             except (HandshakeError, ConnectionClosed) as cce:
+#                 logger.error(f'Connection closed:{cce}')
+#
+#         # return async_function(*args, **kwargs)
+#     return wrapper
+
+
+# @relaunch_on_disconnect
 async def send_updates(server_address, receive_channel):
     async with receive_channel:
-        try:
-            async with open_websocket_url(server_address) as ws:
-                async for fake_bus in receive_channel:
-                    # print(f"got value {fake_bus!r}")
-                    await ws.send_message(fake_bus)
-                    # await trio.sleep(1)
-        except OSError as ose:
-            logger.error(f'Connection attempt failed:{ose}')
+        while True:
+            try:
+                async with open_websocket_url(server_address) as ws:
+                    async for fake_bus in receive_channel:
+                        # print(f"got value {fake_bus!r}")
+                        await ws.send_message(fake_bus)
+                        # await trio.sleep(1)
+            except OSError as ose:
+                logger.error(f'Connection attempt failed:{ose}')
+            except (HandshakeError, ConnectionClosed) as cce:
+                logger.error(f'Connection closed:{cce}')
 
 
 async def main():
@@ -150,5 +172,5 @@ async def main():
             logger.info(all_buses_count)
 
 
-with suppress(KeyboardInterrupt):
-    trio.run(main)
+# with suppress(KeyboardInterrupt):
+trio.run(main)
