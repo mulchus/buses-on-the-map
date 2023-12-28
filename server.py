@@ -3,11 +3,15 @@ import json
 import logging
 import argparse
 import sys
+import pytest
 
 from functools import partial
-from trio_websocket import serve_websocket, ConnectionClosed
+from trio_websocket import open_websocket_url, serve_websocket, ConnectionClosed
 from contextlib import suppress
 from dataclasses import dataclass, asdict
+
+
+pytest_plugins = ('pytest_asyncio',)
 
 
 @dataclass
@@ -90,6 +94,7 @@ def configuring_logging():
     server_logger.addHandler(logger_handler)
     
 
+@pytest.fixture
 async def get_bus(request):
     global buses
     ws = await request.accept()
@@ -141,12 +146,49 @@ async def main():
     browser_port, bus_port, refresh_timeout, verbose = get_args()
     if verbose:
         configuring_logging()
+    
+    # await open_nursery(browser_port, bus_port, refresh_timeout)
 
+
+# async def open_nursery(browser_port, bus_port, refresh_timeout):
     async with trio.open_nursery() as nursery:
         nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', bus_port, ssl_context=None))
         nursery.start_soon(partial(serve_websocket, partial(talk_with_browser, refresh_timeout=refresh_timeout),
                                    '127.0.0.1', browser_port, ssl_context=None))
 
 
-with suppress(KeyboardInterrupt):
-    trio.run(partial(main))
+@pytest.mark.trio
+async def test_server_reception():
+    
+    async def send_bus(server, bus):
+        async with open_websocket_url(server) as ws:
+            await ws.send_message(bus)
+        
+    async with trio.open_nursery() as nursery:
+        try:
+            # nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', 8080, ssl_context=None))
+            nursery.start_soon(partial(send_bus, 'ws://127.0.0.1:8080', 'wrong JSON'))
+        finally:
+            nursery.cancel_scope.cancel()
+    
+    # await send_bus('ws://127.0.0.1:8080', 'wrong JSON')
+    
+    assert await serve_websocket(get_bus, '127.0.0.1', 8080, ssl_context=None) == 'wrong JSON'
+    # assert 1 == 1
+    
+    
+    # assert (await send_bus('ws://127.0.0.1:8080', 'wrong JSON') == await send_bus('ws://127.0.0.1:8000', 'wrong JSON'))
+    #
+    # assert (await call_process_article(10,
+    #                                    'https://inosmi.ru/20231212/ssha-267035917.html--'))['status'] == 'WRONG URL!'
+    #
+    # assert (await call_process_article(10,
+    #                                    'https://dvmn.org/filer/canonical/1561832205/162/'))['status'] == 'PARSING_ERROR'
+    #
+    # assert (await call_process_article(.10,
+    #                                    'https://inosmi.ru/20231212/diplomatiya-267037596.html'))['status'] == 'TIMEOUT'
+
+
+if __name__ == '__main__':
+    with suppress(KeyboardInterrupt):
+        trio.run(partial(main))
