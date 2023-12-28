@@ -27,6 +27,12 @@ class WindowBounds:
 
     def is_inside(self, bus):
         return self.south_lat <= bus.lat <= self.north_lat and self.west_lng <= bus.lng <= self.east_lng
+    
+    def update(self, south_lat, north_lat, west_lng, east_lng):
+        self.south_lat = south_lat
+        self.north_lat = north_lat
+        self.west_lng = west_lng
+        self.east_lng = east_lng
 
 
 buses = {}
@@ -34,7 +40,7 @@ bounds = WindowBounds()
 logger = logging.getLogger('logger')
 
 
-async def server(request):
+async def get_bus(request):
     global buses
     ws = await request.accept()
     while True:
@@ -56,7 +62,7 @@ async def listen_browser(ws):
     global bounds
     while True:
         try:
-            bounds = WindowBounds(**json.loads(await ws.get_message())['data'])
+            bounds.update(**json.loads(await ws.get_message())['data'])
         except ConnectionClosed:
             break
 
@@ -69,7 +75,7 @@ async def send_to_browser(ws):
                 "buses": list(buses.values()),
             }
             await ws.send_message(json.dumps(message))
-            await trio.sleep(.1)
+            await trio.sleep(1)
         except ConnectionClosed:
             break
 
@@ -84,7 +90,7 @@ async def talk_with_browser(request):
 async def main():
     logger.setLevel(logging.DEBUG)
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(partial(serve_websocket, server, '127.0.0.1', 8080, ssl_context=None))
+        nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', 8080, ssl_context=None))
         nursery.start_soon(partial(serve_websocket, talk_with_browser, '127.0.0.1', 8000, ssl_context=None))
 
 
