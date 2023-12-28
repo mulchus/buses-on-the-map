@@ -12,18 +12,18 @@ from contextlib import suppress
 from functools import wraps
 
 
-logger = logging.getLogger('logger')
+fake_bus_logger = logging.getLogger('fake_bus_logger')
 
 
 def configuring_logging():
-    logger.setLevel(logging.INFO)
+    fake_bus_logger.setLevel(logging.INFO)
     logger_handler = logging.StreamHandler(sys.stdout)
     logger_formatter = logging.Formatter(
         '%(asctime)s:%(levelname)s:%(name)s:%(message)s',
         datefmt='%d-%m-%Y %H:%M:%S'
     )
     logger_handler.setFormatter(logger_formatter)
-    logger.addHandler(logger_handler)
+    fake_bus_logger.addHandler(logger_handler)
 
 
 def get_args():
@@ -134,9 +134,9 @@ async def send_updates(server_address, receive_channel):
                         await ws.send_message(fake_bus)
                         # await trio.sleep(1)
             except OSError as ose:
-                logger.error(f'Connection attempt failed:{ose}')
+                fake_bus_logger.error(f'Connection attempt failed:{ose}')
             except (HandshakeError, ConnectionClosed) as cce:
-                logger.error(f'Connection closed:{cce}')
+                fake_bus_logger.error(f'Connection closed:{cce}')
 
 
 async def main():
@@ -144,7 +144,7 @@ async def main():
     if verbose:
         configuring_logging()
     
-    logger.info(f'{server, routes_number, buses_per_route, emulator_id, websockets_number, refresh_timeout, verbose}')
+    fake_bus_logger.info(f'{server, routes_number, buses_per_route, emulator_id, websockets_number, refresh_timeout, verbose}')
   
     send_channel, receive_channel = trio.open_memory_channel(0)
     async with send_channel, receive_channel:
@@ -169,7 +169,7 @@ async def main():
                     route_copy['coordinates'] = new_route
                     random.choice([nursery.start_soon(run_bus, bus_id, route_copy, send_channel.clone(),
                                                       refresh_timeout, nursery) for _ in range(websockets_number)])
-            logger.info(all_buses_count)
+            fake_bus_logger.info(all_buses_count)
 
 
 # with suppress(KeyboardInterrupt):

@@ -1,6 +1,8 @@
 import trio
 import json
 import logging
+import argparse
+import sys
 
 from functools import partial
 from trio_websocket import serve_websocket, ConnectionClosed
@@ -37,8 +39,56 @@ class WindowBounds:
 
 buses = {}
 bounds = WindowBounds()
-logger = logging.getLogger('logger')
+server_logger = logging.getLogger('server_logger')
 
+
+def get_args():
+    parser = argparse.ArgumentParser(description='Скрипт запуска автобусов на карту')
+    parser.add_argument(
+        '--browser_port ',
+        '-brop',
+        nargs='?',
+        type=int,
+        default=8000,
+        help='порт для браузера'
+    )
+    parser.add_argument(
+        '--bus_port',
+        '-busp',
+        nargs='?',
+        type=int,
+        default=8080,
+        help='порт для имитатора автобусов'
+    )
+    parser.add_argument(
+        '--refresh_timeout',
+        '-t',
+        nargs='?',
+        type=float,
+        default=.1,
+        help='задержка в обновлении координат автобусов'
+    )
+    parser.add_argument(
+        '--verbose',
+        '-v',
+        nargs='?',
+        type=bool,
+        help='настройка логирования'
+    )
+    
+    return parser.parse_args().__dict__.values()
+
+
+def configuring_logging():
+    server_logger.setLevel(logging.INFO)
+    logger_handler = logging.StreamHandler(sys.stdout)
+    logger_formatter = logging.Formatter(
+        '%(asctime)s:%(levelname)s:%(name)s:%(message)s',
+        datefmt='%d-%m-%Y %H:%M:%S'
+    )
+    logger_handler.setFormatter(logger_formatter)
+    server_logger.addHandler(logger_handler)
+    
 
 async def get_bus(request):
     global buses
@@ -67,7 +117,7 @@ async def listen_browser(ws):
             break
 
 
-async def send_to_browser(ws):
+async def send_to_browser(ws, refresh_timeout):
     while True:
         try:
             message = {
@@ -75,23 +125,27 @@ async def send_to_browser(ws):
                 "buses": list(buses.values()),
             }
             await ws.send_message(json.dumps(message))
-            await trio.sleep(1)
+            await trio.sleep(refresh_timeout)
         except ConnectionClosed:
             break
 
 
-async def talk_with_browser(request):
+async def talk_with_browser(request, refresh_timeout):
     ws = await request.accept()
     async with trio.open_nursery() as nursery:
         nursery.start_soon(listen_browser, ws)
-        nursery.start_soon(send_to_browser, ws)
+        nursery.start_soon(send_to_browser, ws, refresh_timeout)
     
 
 async def main():
-    logger.setLevel(logging.DEBUG)
+    browser_port, bus_port, refresh_timeout, verbose = get_args()
+    if verbose:
+        configuring_logging()
+
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', 8080, ssl_context=None))
-        nursery.start_soon(partial(serve_websocket, talk_with_browser, '127.0.0.1', 8000, ssl_context=None))
+        nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', bus_port, ssl_context=None))
+        nursery.start_soon(partial(serve_websocket, partial(talk_with_browser, refresh_timeout=refresh_timeout),
+                                   '127.0.0.1', browser_port, ssl_context=None))
 
 
 with suppress(KeyboardInterrupt):
