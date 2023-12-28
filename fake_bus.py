@@ -81,6 +81,7 @@ def get_args():
         '-v',
         nargs='?',
         type=bool,
+        default=True,
         help='настройка логирования'
     )
     
@@ -95,7 +96,6 @@ async def run_bus(bus_id, route, send_channel, refresh_timeout, nursery):
                 for bus_coord in route['coordinates']:
                     fake_bus['lat'] = bus_coord[0]
                     fake_bus['lng'] = bus_coord[1]
-                    # print(fake_bus)
                     await send_channel.send(json.dumps(fake_bus, ensure_ascii=False))
                     await trio.sleep(refresh_timeout)
             except Exception:
@@ -130,9 +130,7 @@ async def send_updates(server_address, receive_channel):
             try:
                 async with open_websocket_url(server_address) as ws:
                     async for fake_bus in receive_channel:
-                        # print(f"got value {fake_bus!r}")
                         await ws.send_message(fake_bus)
-                        # await trio.sleep(1)
             except OSError as ose:
                 fake_bus_logger.error(f'Connection attempt failed:{ose}')
             except (HandshakeError, ConnectionClosed) as cce:
@@ -153,11 +151,7 @@ async def main():
     
             all_buses_count = 0
             for num, route in enumerate(load_routes(routes_number)):
-                # buses_count = len(route['stations']) // 5
-                # if not buses_count:
-                #     buses_count = 1
                 all_buses_count += buses_per_route
-                # print(route['name'], buses_count)
                 for bus_index in range(buses_per_route):
                     route_copy = route.copy()
                     bus_id = generate_bus_id(route_copy['name'], bus_index, emulator_id)
@@ -172,5 +166,5 @@ async def main():
             fake_bus_logger.info(all_buses_count)
 
 
-# with suppress(KeyboardInterrupt):
-trio.run(main)
+with suppress(KeyboardInterrupt):
+    trio.run(main)
