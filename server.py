@@ -5,15 +5,33 @@ import logging
 from functools import partial
 from trio_websocket import serve_websocket, ConnectionClosed
 from contextlib import suppress
+from dataclasses import dataclass, asdict
+
+
+@dataclass
+class Bus:
+    """Class for keeping bus data."""
+    busId: str = ''
+    lat: float = 0.0
+    lng: float = 0.0
+    route: str = ''
+
+
+@dataclass
+class WindowBounds:
+    """Class for keeping window posotion."""
+    south_lat: float = 0.0
+    north_lat: float = 0.0
+    west_lng: float = 0.0
+    east_lng: float = 0.0
+
+    def is_inside(self, bus):
+        return self.south_lat <= bus.lat <= self.north_lat and self.west_lng <= bus.lng <= self.east_lng
 
 
 buses = {}
-bounds = {'south_lat': 0, 'north_lat': 0, 'west_lng': 0, 'east_lng': 0}
+bounds = WindowBounds()
 logger = logging.getLogger('logger')
-
-
-def is_inside(lat, lng):
-    return bounds['south_lat'] <= lat <= bounds['north_lat'] and bounds['west_lng'] <= lng <= bounds['east_lng']
 
 
 async def server(request):
@@ -21,15 +39,15 @@ async def server(request):
     ws = await request.accept()
     while True:
         try:
-            bus = dict(json.loads(await ws.get_message()))
-            if not is_inside(bus['lat'], bus['lng']):
-                if bus['busId'] in buses:
-                    buses.pop(bus['busId'])
+            bus = Bus(**json.loads(await ws.get_message()))
+            if not bounds.is_inside(bus):
+                if bus.busId in buses:
+                    buses.pop(bus.busId)
                 continue
-            if bus['busId'] not in buses:
-                buses[bus['busId']] = bus
+            if bus.busId not in buses:
+                buses[bus.busId] = asdict(bus)
             else:
-                buses.update({bus['busId']: bus})
+                buses.update({bus.busId: asdict(bus)})
         except ConnectionClosed:
             break
 
@@ -38,7 +56,7 @@ async def listen_browser(ws):
     global bounds
     while True:
         try:
-            bounds = json.loads(await ws.get_message())['data']
+            bounds = WindowBounds(**json.loads(await ws.get_message())['data'])
         except ConnectionClosed:
             break
 
