@@ -7,7 +7,7 @@ from trio_websocket import open_websocket_url, HandshakeError, ConnectionClosed
 from contextlib import suppress
 
 
-harmful_bus_logger = logging.getLogger('harmful_client_logger')
+harmful_bus_logger = logging.getLogger('harmful_bus_logger')
 
 
 def configuring_logging():

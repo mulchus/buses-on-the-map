@@ -45,7 +45,7 @@ server_logger = logging.getLogger('server_logger')
 def get_args():
     parser = argparse.ArgumentParser(description='Скрипт запуска автобусов на карту')
     parser.add_argument(
-        '--browser_port ',
+        '--browser_port',
         '-brop',
         nargs='?',
         type=int,
@@ -66,14 +66,14 @@ def get_args():
         nargs='?',
         type=float,
         default=.1,
-        help='задержка в обновлении координат автобусов'
+        help='задержка в обновлении координат видимого пула автобусов'
     )
     parser.add_argument(
         '--verbose',
         '-v',
         nargs='?',
         type=bool,
-        help='настройка логирования'
+        help='включение логирования'
     )
     
     return parser.parse_args().__dict__.values()

@@ -74,7 +74,7 @@ def get_args():
         nargs='?',
         type=float,
         default=1,
-        help='задержка в обновлении координат сервера'
+        help='задержка в обновлении координат автобусов'
     )
     parser.add_argument(
         '--verbose',
@@ -82,7 +82,7 @@ def get_args():
         nargs='?',
         type=bool,
         default=True,
-        help='настройка логирования'
+        help='включение логирования'
     )
     
     return parser.parse_args().__dict__.values()
