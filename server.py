@@ -173,11 +173,11 @@ async def main():
         configuring_logging()
 
     async with trio.open_nursery() as nursery:
-        nursery.start_soon(partial(serve_websocket, get_bus, '127.0.0.1', bus_port, ssl_context=None))
-        nursery.start_soon(partial(serve_websocket, partial(talk_with_browser, refresh_timeout=refresh_timeout),
-                                   '127.0.0.1', browser_port, ssl_context=None))
+        nursery.start_soon(serve_websocket, get_bus, '127.0.0.1', bus_port, None)
+        nursery.start_soon(serve_websocket, partial(talk_with_browser, refresh_timeout=refresh_timeout),
+                           '127.0.0.1', browser_port, None)
 
 
 if __name__ == '__main__':
     with suppress(KeyboardInterrupt):
-        trio.run(partial(main))
+        trio.run(main)
